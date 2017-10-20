@@ -1,31 +1,24 @@
 #include <Servo.h>
 
-// EN: Servo pins.
-// RU: Цифровые выводы контролера, к которым подключены серводвигатели.
+// Servo pins.
 const int LEFT_SERVO_PIN = 9;
 const int CENTRAL_SERVO_PIN = 10;
 const int RIGHT_SERVO_PIN = 8;
 
-// EN: Servo "zero" angle positions.
-// RU: Центральное ("нулевое") положение серводвигателей в градусах.
+// Servo "zero" angle positions.
 const long LEFT_SERVO_ZERO_VALUE = 90;
 const long RIGHT_SERVO_ZERO_VALUE = 90;
 const long CENTRAL_SERVO_ZERO_VALUE = 90;
 
-// EN: Amplitude of left and right servos.
-// RU: Амплитула левого и правого серводвигателей.
+// Amplitude of left and right servos.
 const long SIDE_SERVOS_FULL_AMPLITUDE = 30;
-// EN: Half amplitude of left and right servos. Is used when robot is turning
-//     left or right while moving forward or backward.
-// RU: Уменьшенная амплитула левого и правого серводвигателей. Используется
-//     при поворотах совмещённых с движением вперёд или назад.
+// Half amplitude of left and right servos. Is used when robot is turning
+// left or right while moving forward or backward.
 const long SIDE_SERVOS_HALF_AMPLITUDE = 15;
-// EN: Amplitude of central servo.
-// RU: Амплитула центрального серводвигателя.
+// Amplitude of central servo.
 const long CENTRAL_SERVO_AMPLITUDE = 20;
 
-// EN: Periods for different speeds.
-// RU: Периоды колебаний для различных скоростей.
+// Periods for different speeds.
 const long STEP_PERIOD_VERY_SLOW = 2000;
 const long STEP_PERIOD_SLOW = 1500;
 const long STEP_PERIOD_FAST = 1000;
@@ -81,10 +74,8 @@ void attachServos() {
   }
 }
 
-// EN: In some positions servos can make noise and vibrate.
-//     To avoid this noise and vibration detach servos when robot is stopped.
-// RU: В некоторых положениях серводвигатели могут вибрировать и шуметь.
-//     Чтобы это избежать во время остановок робота, сервы надо отключать.
+// In some positions servos can make noise and vibrate.
+// To avoid this noise and vibration detach servos when robot is stopped.
 void detachServos() {
   if (isAttached) {
     LeftServo.detach();
@@ -94,10 +85,7 @@ void detachServos() {
   }
 }
 
-void setup() {
-  // EN: Start the IR receiver.
-  // RU: Начинаем прослушивание ИК-сигналов
- 
+void setup() { 
   attachServos();
   isStopped = false;
   lastMillis = millis();
@@ -109,14 +97,10 @@ void setup() {
   stepPeriod = STEP_PERIOD_FAST;
 }
 
-// EN: Gets angle for servo.
+// Gets angle for servo.
 //     Param amplitude - amplitude of oscillating process,
 //     param phaseMillis - current duration of oscillating,
 //     param shiftAndle - phase of oscillating process.
-// RU: Получение угла для серводвигателя.
-//     Параметр amplitude - амплитуда колебаний,
-//     Параметр phaseMillis - текущая продолжительность колебаний,
-//     Параметр shiftAndle - фаза колебаний.
 int getAngle(long amplitude, long phaseMillis, float shiftAngle) {
   float alpha = 2 * PI * phaseMillis / stepPeriod + shiftAngle;
   float angle = amplitude * sin(alpha);
@@ -127,9 +111,8 @@ void loop() {
   long millisNow = millis();
   long millisPassed = millisNow - lastMillis;
   if (isStopped) {
-    // EN: We should wait for half a second. After that we think that servos are in zero
-    //     position and we can detach them.
-    // RU: Ждём полсекунды, чтобы серводвигатели вышли в нулевое положение и отключаем их.
+    // We should wait for half a second. After that we think that servos are in zero
+    // position and we can detach them.
     if (millisPassed >= 500) {
       lastMillis = 0;
       detachServos();
@@ -204,8 +187,7 @@ void loop() {
       amplitudeLeftServo = SIDE_SERVOS_FULL_AMPLITUDE;
       amplitudeRightServo = SIDE_SERVOS_FULL_AMPLITUDE;
     } else if (isCommand(BLUETOOTH_COMMAND_VERY_SLOW, command)) {
-      // EN: globalPhase correction to save servo positions when changing period.
-      // RU: Корректировка globalPhase чтобы сохранить положение серв при смене периода колебаний ног.
+      // globalPhase correction to save servo positions when changing period.
       globalPhase = globalPhase * STEP_PERIOD_VERY_SLOW / stepPeriod;
       stepPeriod = STEP_PERIOD_VERY_SLOW;
     } else if (isCommand(BLUETOOTH_COMMAND_SLOW, command)) {
