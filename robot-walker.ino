@@ -1,26 +1,31 @@
 #include <Servo.h>
 
-// Servo pins.
-const int LEFT_SERVO_PIN = 2;
-const int CENTRAL_SERVO_PIN = 4;
-const int RIGHT_SERVO_PIN = 7;
+// EN: Servo pins.
+// RU: Цифровые выводы контролера, к которым подключены серводвигатели.
+const int LEFT_SERVO_PIN = 9;
+const int CENTRAL_SERVO_PIN = 10;
+const int RIGHT_SERVO_PIN = 8;
 
-// Servo "zero" angle positions.
+// EN: Servo "zero" angle positions.
+// RU: Центральное ("нулевое") положение серводвигателей в градусах.
 const long LEFT_SERVO_ZERO_VALUE = 90;
 const long RIGHT_SERVO_ZERO_VALUE = 90;
 const long CENTRAL_SERVO_ZERO_VALUE = 90;
 
-// Amplitude of left and right servos.
+// EN: Amplitude of left and right servos.
+// RU: Амплитула левого и правого серводвигателей.
 const long SIDE_SERVOS_FULL_AMPLITUDE = 30;
-
-// Half amplitude of left and right servos. Is used when robot is turning
-// left or right while moving forward or backward.
+// EN: Half amplitude of left and right servos. Is used when robot is turning
+//     left or right while moving forward or backward.
+// RU: Уменьшенная амплитула левого и правого серводвигателей. Используется
+//     при поворотах совмещённых с движением вперёд или назад.
 const long SIDE_SERVOS_HALF_AMPLITUDE = 15;
-
-// Amplitude of central servo.
+// EN: Amplitude of central servo.
+// RU: Амплитула центрального серводвигателя.
 const long CENTRAL_SERVO_AMPLITUDE = 20;
 
-// Periods for different speeds.
+// EN: Periods for different speeds.
+// RU: Периоды колебаний для различных скоростей.
 const long STEP_PERIOD_VERY_SLOW = 2000;
 const long STEP_PERIOD_SLOW = 1500;
 const long STEP_PERIOD_FAST = 1000;
@@ -35,11 +40,37 @@ long stepPeriod;
 long amplitudeLeftServo;
 long amplitudeRightServo;
 boolean isAttached;
-boolean isStopped;
+boolean isStopped; 
 
 Servo LeftServo;
 Servo RightServo;
 Servo CentralServo;
+
+// commands
+int BLUETOOTH_COMMAND_FORWARD = 1;
+int BLUETOOTH_COMMAND_FORWARD_LEFT = 2;
+int BLUETOOTH_COMMAND_FORWARD_RIGHT = 3;
+int BLUETOOTH_COMMAND_BACKWARD = 4;
+int BLUETOOTH_COMMAND_BACKWARD_LEFT = 5;
+int BLUETOOTH_COMMAND_BACKWARD_RIGHT = 6;
+int BLUETOOTH_COMMAND_TURN_LEFT = 7;
+int BLUETOOTH_COMMAND_TURN_RIGHT = 8;
+int BLUETOOTH_COMMAND_STOP = 9;
+int BLUETOOTH_COMMAND_VERY_SLOW = 10;
+int BLUETOOTH_COMMAND_SLOW = 11;
+int BLUETOOTH_COMMAND_FAST = 12;
+int BLUETOOTH_COMMAND_VERY_FAST = 13;
+
+int BLUETOOTH_COMMAND_MIN = 1;
+int BLUETOOTH_COMMAND_MAX = 13;
+
+int generateRandomCommand(){
+  return random(BLUETOOTH_COMMAND_MIN, BLUETOOTH_COMMAND_MAX);
+}
+
+bool isCommand(int expectedCommand, int actualCommand){
+  return expectedCommand == actualCommand;
+}
 
 void attachServos() {
   if (!isAttached) {
@@ -50,8 +81,10 @@ void attachServos() {
   }
 }
 
-// In some positions servos can make noise and vibrate.
-// To avoid this noise and vibration detach servos when robot is stopped.
+// EN: In some positions servos can make noise and vibrate.
+//     To avoid this noise and vibration detach servos when robot is stopped.
+// RU: В некоторых положениях серводвигатели могут вибрировать и шуметь.
+//     Чтобы это избежать во время остановок робота, сервы надо отключать.
 void detachServos() {
   if (isAttached) {
     LeftServo.detach();
@@ -62,11 +95,11 @@ void detachServos() {
 }
 
 void setup() {
-  // To complete moving process need to add bluetooth support
-  // (Will be implemented according plan)
+  // EN: Start the IR receiver.
+  // RU: Начинаем прослушивание ИК-сигналов
  
   attachServos();
-  isStopped = true;
+  isStopped = false;
   lastMillis = millis();
 
   angleShiftLeftServo = 0;
@@ -76,32 +109,27 @@ void setup() {
   stepPeriod = STEP_PERIOD_FAST;
 }
 
-// Gets angle for servo.
-// Param amplitude - amplitude of oscillating process,
-// param phaseMillis - current duration of oscillating,
-// param shiftAndle - phase of oscillating process.
+// EN: Gets angle for servo.
+//     Param amplitude - amplitude of oscillating process,
+//     param phaseMillis - current duration of oscillating,
+//     param shiftAndle - phase of oscillating process.
+// RU: Получение угла для серводвигателя.
+//     Параметр amplitude - амплитуда колебаний,
+//     Параметр phaseMillis - текущая продолжительность колебаний,
+//     Параметр shiftAndle - фаза колебаний.
 int getAngle(long amplitude, long phaseMillis, float shiftAngle) {
   float alpha = 2 * PI * phaseMillis / stepPeriod + shiftAngle;
   float angle = amplitude * sin(alpha);
   return (int)angle;
 }
 
-template<typename T,size_t N>
-boolean hasCode(T (&commandCodes)[N], long code) {
-  for (int i = 0; i < N; i++) {
-    if (commandCodes[i] == code) {
-      return true;
-    }
-  }
-  return false;
-}
-
 void loop() {
   long millisNow = millis();
   long millisPassed = millisNow - lastMillis;
   if (isStopped) {
-    // We should wait for half a second. After that we think that servos are in zero
-    // position and we can detach them.
+    // EN: We should wait for half a second. After that we think that servos are in zero
+    //     position and we can detach them.
+    // RU: Ждём полсекунды, чтобы серводвигатели вышли в нулевое положение и отключаем их.
     if (millisPassed >= 500) {
       lastMillis = 0;
       detachServos();
@@ -115,15 +143,11 @@ void loop() {
     globalPhase = globalPhase % stepPeriod;
   }
   
-  // Declaration of the structure that is used for received and decoded Bluetooth commands.
-  decode_results results;
-  
-  // We can handle Bluetooth command if it is received and decoded successfully.
-  if (bluetooth.decode(&results)) {
-    
-    if (hasCode(BLUETOOTH_COMMAND_FORWARD_CODES, results.value) ||
-        hasCode(BLUETOOTH_COMMAND_FORWARD_LEFT_CODES, results.value) ||
-        hasCode(BLUETOOTH_COMMAND_FORWARD_RIGHT_CODES, results.value)) {
+   int command = generateRandomCommand();
+
+   if (isCommand(BLUETOOTH_COMMAND_FORWARD, command) ||
+        isCommand(BLUETOOTH_COMMAND_FORWARD_LEFT, command) ||
+        isCommand(BLUETOOTH_COMMAND_FORWARD_RIGHT, command)) {
     
       attachServos();
       isStopped = false;
@@ -133,14 +157,14 @@ void loop() {
         
       amplitudeLeftServo = SIDE_SERVOS_FULL_AMPLITUDE;
       amplitudeRightServo = SIDE_SERVOS_FULL_AMPLITUDE;
-      if (hasCode(BLUETOOTH_COMMAND_FORWARD_LEFT_CODES, results.value)) {
+      if (isCommand(BLUETOOTH_COMMAND_FORWARD_LEFT, command)) {
         amplitudeLeftServo = SIDE_SERVOS_HALF_AMPLITUDE;
-      } else if (hasCode(BLUETOOTH_COMMAND_FORWARD_RIGHT_CODES, results.value)) {
+      } else if (isCommand(BLUETOOTH_COMMAND_FORWARD_RIGHT, command)) {
         amplitudeRightServo = SIDE_SERVOS_HALF_AMPLITUDE;
       }
-    } else if(hasCode(BLUETOOTH_COMMAND_BACKWARD_CODES, results.value) ||
-              hasCode(BLUETOOTH_COMMAND_BACKWARD_LEFT_CODES, results.value) ||
-              hasCode(BLUETOOTH_COMMAND_BACKWARD_RIGHT_CODES, results.value)) {
+    } else if(isCommand(BLUETOOTH_COMMAND_BACKWARD, command) ||
+              isCommand(BLUETOOTH_COMMAND_BACKWARD_LEFT, command) ||
+              isCommand(BLUETOOTH_COMMAND_BACKWARD_RIGHT, command)) {
 
       attachServos();
       isStopped = false;
@@ -150,12 +174,12 @@ void loop() {
 
       amplitudeLeftServo = SIDE_SERVOS_FULL_AMPLITUDE;
       amplitudeRightServo = SIDE_SERVOS_FULL_AMPLITUDE;
-      if (hasCode(BLUETOOTH_COMMAND_BACKWARD_LEFT_CODES, results.value)) {
+      if (isCommand(BLUETOOTH_COMMAND_BACKWARD_LEFT, command)) {
         amplitudeRightServo = SIDE_SERVOS_HALF_AMPLITUDE;
-      } else if (hasCode(BLUETOOTH_COMMAND_BACKWARD_RIGHT_CODES, results.value)) {
+      } else if (isCommand(BLUETOOTH_COMMAND_BACKWARD_RIGHT, command)) {
         amplitudeLeftServo = SIDE_SERVOS_HALF_AMPLITUDE;
       }
-    } else if (hasCode(BLUETOOTH_COMMAND_TURN_LEFT_CODES, results.value)) {
+    } else if (isCommand(BLUETOOTH_COMMAND_TURN_LEFT, command)) {
       attachServos();
       isStopped = false;
       angleShiftLeftServo = 0;
@@ -163,7 +187,7 @@ void loop() {
       angleShiftCentralServo = -PI/2;
       amplitudeLeftServo = SIDE_SERVOS_FULL_AMPLITUDE;
       amplitudeRightServo = SIDE_SERVOS_FULL_AMPLITUDE;
-    } else if (hasCode(BLUETOOTH_COMMAND_TURN_RIGHT_CODES, results.value)) {
+    } else if (isCommand(BLUETOOTH_COMMAND_TURN_RIGHT, command)) {
       attachServos();
       isStopped = false;
       angleShiftLeftServo = 0;
@@ -171,7 +195,7 @@ void loop() {
       angleShiftCentralServo = PI/2;
       amplitudeLeftServo = SIDE_SERVOS_FULL_AMPLITUDE;
       amplitudeRightServo = SIDE_SERVOS_FULL_AMPLITUDE;
-    } else if (hasCode(BLUETOOTH_COMMAND_STOP_CODES, results.value)) {
+    } else if (isCommand(BLUETOOTH_COMMAND_STOP, command)) {
       attachServos();
       isStopped = true;
       angleShiftLeftServo = 0;
@@ -179,27 +203,25 @@ void loop() {
       angleShiftCentralServo = 0;
       amplitudeLeftServo = SIDE_SERVOS_FULL_AMPLITUDE;
       amplitudeRightServo = SIDE_SERVOS_FULL_AMPLITUDE;
-    } else if (hasCode(IR_COMMAND_VERY_SLOW_CODES, results.value)) {
-      // globalPhase correction to save servo positions when changing period.
+    } else if (isCommand(BLUETOOTH_COMMAND_VERY_SLOW, command)) {
+      // EN: globalPhase correction to save servo positions when changing period.
+      // RU: Корректировка globalPhase чтобы сохранить положение серв при смене периода колебаний ног.
       globalPhase = globalPhase * STEP_PERIOD_VERY_SLOW / stepPeriod;
       stepPeriod = STEP_PERIOD_VERY_SLOW;
-    } else if (hasCode(BLUETOOTH_COMMAND_SLOW_CODES, results.value)) {
+    } else if (isCommand(BLUETOOTH_COMMAND_SLOW, command)) {
       globalPhase = globalPhase * STEP_PERIOD_SLOW / stepPeriod;
       stepPeriod = STEP_PERIOD_SLOW;
-    } else if (hasCode(BLUETOOTH_COMMAND_FAST_CODES, results.value)) {
+    } else if (isCommand(BLUETOOTH_COMMAND_FAST, command)) {
       globalPhase = globalPhase * STEP_PERIOD_FAST / stepPeriod;
       stepPeriod = STEP_PERIOD_FAST;
-    } else if (hasCode(BLUETOOTH_COMMAND_VERY_FAST_CODES, results.value)) {
+    } else if (isCommand(BLUETOOTH_COMMAND_VERY_FAST, command)) {
       globalPhase = globalPhase * STEP_PERIOD_VERY_FAST / stepPeriod;
       stepPeriod = STEP_PERIOD_VERY_FAST;
     }
-    // Once a code has been decoded, the resume() method must be called to resume receiving codes
-    bluetooth.resume();
-  }
   
-  if (isAttached) {
-    LeftServo.write(LEFT_SERVO_ZERO_VALUE + getAngle(amplitudeLeftServo, globalPhase, angleShiftLeftServo));
-    RightServo.write(RIGHT_SERVO_ZERO_VALUE + getAngle(amplitudeRightServo, globalPhase, angleShiftRightServo));
-    CentralServo.write(CENTRAL_SERVO_ZERO_VALUE + getAngle(CENTRAL_SERVO_AMPLITUDE, globalPhase, angleShiftCentralServo));
-  }
+    if (isAttached) {
+      LeftServo.write(LEFT_SERVO_ZERO_VALUE + getAngle(amplitudeLeftServo, globalPhase, angleShiftLeftServo));
+      RightServo.write(RIGHT_SERVO_ZERO_VALUE + getAngle(amplitudeRightServo, globalPhase, angleShiftRightServo));
+      CentralServo.write(CENTRAL_SERVO_ZERO_VALUE + getAngle(CENTRAL_SERVO_AMPLITUDE, globalPhase, angleShiftCentralServo));
+    }
 }
